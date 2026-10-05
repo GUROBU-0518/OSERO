@@ -6,6 +6,7 @@ export type Move = {
   col: number;
   flips: Array<{ row: number; col: number }>;
 };
+export type CpuLevel = "easy" | "normal" | "hard";
 
 const size = 8;
 const directions = [
@@ -90,12 +91,16 @@ export function getWinner(board: Board): Player | "draw" {
   return counts.black > counts.white ? "black" : "white";
 }
 
-export function chooseCpuMove(board: Board, player: Player): Move | null {
+export function chooseCpuMove(board: Board, player: Player, level: CpuLevel = "normal"): Move | null {
   const moves = findValidMoves(board, player);
   if (moves.length === 0) return null;
 
+  if (level === "easy") {
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+
   return moves
-    .map((move) => ({ move, score: scoreMove(board, player, move) }))
+    .map((move) => ({ move, score: scoreMove(board, player, move, level) }))
     .sort((a, b) => b.score - a.score)[0].move;
 }
 
@@ -127,7 +132,7 @@ function findFlips(
   return flips;
 }
 
-function scoreMove(board: Board, player: Player, move: Move): number {
+function scoreMove(board: Board, player: Player, move: Move, level: CpuLevel): number {
   const cornerBonus = isCorner(move.row, move.col) ? 100 : 0;
   const edgeBonus = isEdge(move.row, move.col) ? 16 : 0;
   const riskyCornerPenalty = isNextToCorner(move.row, move.col) ? -28 : 0;
@@ -135,8 +140,15 @@ function scoreMove(board: Board, player: Player, move: Move): number {
   const opponentMobility = mobilityBoard
     ? findValidMoves(mobilityBoard, otherPlayer(player)).length
     : 0;
+  const stableShapeBonus = level === "hard" ? countPiecesAfterMove(mobilityBoard, player) : 0;
+  const hardMobilityPenalty = level === "hard" ? opponentMobility * 3 : opponentMobility * 2;
 
-  return move.flips.length * 6 + cornerBonus + edgeBonus + riskyCornerPenalty - opponentMobility * 2;
+  return move.flips.length * 6 + cornerBonus + edgeBonus + riskyCornerPenalty + stableShapeBonus - hardMobilityPenalty;
+}
+
+function countPiecesAfterMove(board: Board | null, player: Player): number {
+  if (!board) return 0;
+  return countPieces(board)[player];
 }
 
 function cloneBoard(board: Board): Board {

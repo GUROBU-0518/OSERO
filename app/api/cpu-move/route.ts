@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   Board,
+  CpuLevel,
   Player,
   applyMove,
   chooseCpuMove,
@@ -10,16 +11,17 @@ import {
 } from "@/lib/othello";
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { board?: Board; player?: Player };
+  const body = (await request.json()) as { board?: Board; level?: CpuLevel; player?: Player };
 
-  if (!isBoard(body.board) || !isPlayer(body.player)) {
+  if (!isBoard(body.board) || !isPlayer(body.player) || !isCpuLevel(body.level ?? "normal")) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   const board = body.board;
   const player = body.player;
+  const level = body.level ?? "normal";
   const opponent = otherPlayer(player);
-  const move = chooseCpuMove(board, player);
+  const move = chooseCpuMove(board, player, level);
 
   if (!move) {
     return NextResponse.json({
@@ -68,6 +70,10 @@ function isBoard(value: unknown): value is Board {
 
 function isPlayer(value: unknown): value is Player {
   return value === "black" || value === "white";
+}
+
+function isCpuLevel(value: unknown): value is CpuLevel {
+  return value === "easy" || value === "normal" || value === "hard";
 }
 
 function winnerLabel(winner: Player | "draw") {
